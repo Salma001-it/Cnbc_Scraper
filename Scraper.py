@@ -59,7 +59,7 @@ def estrattore(c):
         link_dataset.append({"Company": c, "Link": href})
 
 # Ciclo su tutte le aziende
-for c in company["Company"]:
+for c in company["Company"][:100]:
     estrattore(c)
     time.sleep(2)
 
