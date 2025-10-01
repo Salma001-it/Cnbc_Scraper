@@ -47,7 +47,7 @@ def estrattore(c):
         pass
 
     # Scroll per caricare risultati
-    end_time = time.time() + 5
+    end_time = time.time() + 60
     while time.time() < end_time:
         driver.find_element(By.TAG_NAME, "body").send_keys(Keys.PAGE_DOWN)
         time.sleep(random.uniform(0.5, 1.5))
@@ -59,7 +59,7 @@ def estrattore(c):
         link_dataset.append({"Company": c, "Link": href})
 
 # Ciclo su tutte le aziende
-for c in company["Company"][:100]:
+for c in company["Company"]:
     estrattore(c)
     time.sleep(2)
 
