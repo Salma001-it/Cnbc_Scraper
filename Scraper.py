@@ -1,88 +1,64 @@
+import time
+import random
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-import time
-import pandas as pd
-import random
-
-from huggingface_hub import login
+from newspaper import Config, Article
 from datasets import load_dataset, Dataset
-
+from huggingface_hub import login
 import os
+
+# Login Hugging Face
 login(token=os.environ["HF_TOKEN"])
 
+# Config Newspaper
+user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
+config = Config()
+config.browser_user_agent = user_agent
+config.request_timeout = 8
 
+# Selenium setup
 options = Options()
 options.add_argument("--headless")
 driver = webdriver.Chrome(options=options)
 
+# Carica lista di aziende
 company = pd.read_excel("SP500CompanyNameTicker.xlsx")
 company["Company"] = company["Company"].str.replace("+", "%")
 
-dataset = []
+# Dataset temporaneo dei link
+link_dataset = []
 
+# Funzione per estrarre link da CNBC
 def estrattore(c):
-    link = f"https://www.cnbc.com/search/?query={c}&qsearchterm={c}"
-    driver.get(link)
-    links = []
+    url = f"https://www.cnbc.com/search/?query={c}&qsearchterm={c}"
+    driver.get(url)
 
-    # Accetta cookie se presenti
+    # Accetta cookie
     try:
-        botone_accetta = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "onetrust-accept-btn-handler"))
-        )
-        botone_accetta.click()
+        WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.ID, "onetrust-accept-btn-handler"))
+        ).click()
     except:
         pass
 
-    # Ordina per data se possibile
-    try:
-        botone_ordina = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "sortdate"))
-        )
-        botone_ordina.click()
-    except:
-        pass
-
-    # Gestione iframe abbonamenti
-    try:
-        iframe = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "zephrIframeOutcome"))
-        )
-        driver.switch_to.frame(iframe)
-        button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='analytics-click']"))
-        )
-        button.click()
-        driver.switch_to.default_content()
-    except:
-        pass  
-
-    # Scrolla la pagina per caricare più risultati
-    tempo_di_scroll = 5  
-    end_time = time.time() + tempo_di_scroll  
+    # Scroll per caricare risultati
+    end_time = time.time() + 5
     while time.time() < end_time:
-        body = driver.find_element(By.TAG_NAME, "body")
-        body.send_keys(Keys.PAGE_DOWN)
-        time.sleep(random.uniform(1, 2))
+        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.PAGE_DOWN)
+        time.sleep(random.uniform(0.5, 1.5))
 
-    # Trova i link
+    # Trova link articoli
     links = driver.find_elements(By.CLASS_NAME, "resultlink")
+    for l in links:
+        href = l.get_attribute("href")
+        link_dataset.append({"Company": c, "Link": href})
 
-    if links:
-        print(f"✅ Trovati {len(links)} link per {c}:")
-        for link in links:
-            href = link.get_attribute("href")
-            dataset.append({
-                "Company": c,
-                "Link": href
-            })
-    else:
-        print(f"⚠️ Nessun link trovato per {c}")
-
+# Ciclo su tutte le aziende
 for c in company["Company"]:
     estrattore(c)
     time.sleep(2)
@@ -90,26 +66,60 @@ for c in company["Company"]:
 # Chiudi browser
 driver.quit()
 
-df = pd.DataFrame(dataset)
-df["Company"] = df["Company"].str.replace("%", " ")
+# DataFrame dei link
+df_links = pd.DataFrame(link_dataset)
+df_links["Company"] = df_links["Company"].str.replace("%", " ")
 
+# Carica dataset esistente da Hugging Face
 repo_id = "SelmaNajih001/Cnbc_MultiCompany"
-
-# Carica dataset esistente (se c’è)
 try:
     old = load_dataset(repo_id, split="train")
     old_df = old.to_pandas()
 except:
     old_df = pd.DataFrame()
 
-# Unisci e rimuovi duplicati
-all_df = pd.concat([old_df, df]).drop_duplicates(subset=["Company", "Link"])
+# Unisci e rimuovi duplicati sui link
+all_df = pd.concat([old_df, df_links]).drop_duplicates(subset=["Link"])
 all_df = all_df.reset_index(drop=True)
 
-# Converte in dataset Hugging Face
-final_ds = Dataset.from_pandas(all_df)
+# Seleziona solo link senza testo
+to_scrape = all_df[all_df["Text"].isna() | (all_df["Text"] == "")]
+
+# Scarica articoli con Newspaper
+dataset = []
+for _, row in to_scrape.iterrows():
+    url = row["Link"]
+    company_name = row["Company"]
+    try:
+        article = Article(url, config=config)
+        article.download()
+        article.parse()
+        text = article.text
+        title = article.title
+        date = article.publish_date
+        if text:
+            dataset.append({
+                "Company": company_name,
+                "Link": url,
+                "Title": title,
+                "Date": date,
+                "Text": text
+            })
+    except Exception as e:
+        print(f"Errore con {url}: {e}")
+
+# DataFrame articoli con testo
+df_articles = pd.DataFrame(dataset)
+
+# Unisci con dataset esistente e rimuovi duplicati
+final_df = pd.concat([all_df, df_articles]).drop_duplicates(subset=["Link","Text"])
+final_df = final_df.reset_index(drop=True)
+
+# Salva su Hugging Face
+final_ds = Dataset.from_pandas(final_df)
 final_ds.push_to_hub(repo_id, private=False)
 
 print("🎉 Dataset aggiornato con successo!")
+
 
 
