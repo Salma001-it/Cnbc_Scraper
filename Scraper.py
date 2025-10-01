@@ -83,7 +83,7 @@ def estrattore(c):
     else:
         print(f"⚠️ Nessun link trovato per {c}")
 
-for c in company["Company"][:5]:
+for c in company["Company"]:
     estrattore(c)
     time.sleep(2)
 
