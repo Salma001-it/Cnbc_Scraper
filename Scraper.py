@@ -117,9 +117,7 @@ final_df = final_df.reset_index(drop=True)
 
 # Salva su Hugging Face
 final_ds = Dataset.from_pandas(final_df)
+final_ds = final_ds.filter(lambda example: example["Text"] is not None and example["Text"] != "")
 final_ds.push_to_hub(repo_id, private=True)
-
-print("🎉 Dataset aggiornato con successo!")
-
 
 
