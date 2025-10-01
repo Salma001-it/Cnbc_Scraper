@@ -117,7 +117,7 @@ final_df = final_df.reset_index(drop=True)
 
 # Salva su Hugging Face
 final_ds = Dataset.from_pandas(final_df)
-final_ds.push_to_hub(repo_id, private=False)
+final_ds.push_to_hub(repo_id, private=True)
 
 print("🎉 Dataset aggiornato con successo!")
 
