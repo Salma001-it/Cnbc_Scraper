@@ -3,6 +3,8 @@ import random
 import pandas as pd
 import re
 import os
+import shutil
+import gc
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -63,6 +65,9 @@ for c in company["Company"][:5]:
 
 driver.quit()
 
+# Pulizia cartelle temporanee di Selenium
+shutil.rmtree("/tmp/chrome*", ignore_errors=True)
+
 df_links = pd.DataFrame(link_dataset)
 df_links["Company"] = df_links["Company"].str.replace("%", " ")
 
@@ -76,7 +81,7 @@ except:
 all_df = pd.concat([old_df, df_links]).drop_duplicates(subset=["Link"])
 all_df = all_df.reset_index(drop=True)
 
-to_scrape = all_df[all_df["Text"].isna() | (all_df["Text"] == "")]
+to_scrape = all_df[all_df.get("Text", pd.Series()).isna() | (all_df.get("Text", pd.Series()) == "")]
 
 dataset = []
 for _, row in to_scrape.iterrows():
@@ -97,6 +102,8 @@ for _, row in to_scrape.iterrows():
                 "Date": date,
                 "Text": text
             })
+            # Output console minimo
+            print(f"Processed article: {title} ({url})")
     except Exception as e:
         print(f"Errore con {url}: {e}")
 
@@ -105,6 +112,10 @@ df_articles = pd.DataFrame(dataset)
 final_df = pd.concat([all_df, df_articles]).drop_duplicates(subset=["Link","Text"])
 final_df = final_df.reset_index(drop=True)
 
+# Pulizia memoria dei DataFrame intermedi
+del df_links, df_articles, all_df, to_scrape, dataset
+gc.collect()
+
 final_ds = Dataset.from_pandas(final_df)
 final_ds = final_ds.filter(lambda example: example["Text"] is not None and example["Text"] != "")
 final_ds.push_to_hub(repo_id, private=True)
@@ -112,8 +123,6 @@ final_ds.push_to_hub(repo_id, private=True)
 # ===============================
 # 2. NLP CON MISTRAL
 # ===============================
-
-# Funzione per costruire il prompt
 def build_prompt(text):
     return f"""<s>[INST]
 You are a market analyst.
@@ -133,19 +142,17 @@ Politics:
 - ...
 [/INST]</s>""".strip()
 
-# Funzione per estrarre sezioni
 def extract_sections(text):
     cleaned = re.sub(r"<s>\[INST\].*?\[/INST\]</s>", "", text, flags=re.DOTALL)
     econ_match = re.search(r"Economics\s*/\s*Finance\s*:\s*(.*?)(?:\n[A-Z][\w\s/]+:|$)", cleaned, flags=re.DOTALL | re.IGNORECASE)
-    econ_part = econ_match.group(1).strip() if econ_match else ""
     pol_match = re.search(r"Politics\s*:\s*(.*?)(?:\n[A-Z][\w\s/]+:|$)", cleaned, flags=re.DOTALL | re.IGNORECASE)
+    econ_part = econ_match.group(1).strip() if econ_match else ""
     politics_part = pol_match.group(1).strip() if pol_match else ""
     return econ_part, politics_part
 
-# Aggiungi i prompt
+# Aggiungi prompt
 dataset = final_ds.map(lambda example: {"prompt": build_prompt(example["Text"])})
 
-# Inizializza il modello
 pipe = pipeline(
     "text-generation",
     model="mistralai/Mistral-7B-Instruct-v0.2",
@@ -153,32 +160,28 @@ pipe = pipeline(
 )
 pipe.tokenizer.pad_token_id = pipe.model.config.eos_token_id
 
-# Generazione batch
+# Generazione batch con output minimo
 results = []
-for i, out in enumerate(pipe(
-    KeyDataset(dataset, "prompt"),
-    batch_size=2,
-    truncation=True,
-    padding=True,
-    return_full_text=False
-)):
+batch_size = 2
+for i, out in enumerate(pipe(KeyDataset(dataset, "prompt"), batch_size=batch_size, truncation=True, padding=True, return_full_text=False)):
     generated = out[0]["generated_text"]
     econ, pol = extract_sections(generated)
     results.append({
         "Economics_Finance": econ,
         "Politics": pol
     })
+    if (i+1) % 10 == 0:
+        print(f"Processed {i+1} batches...")
 
-# Unisci risultati
 df_results = pd.DataFrame(results)
 final_df_out = pd.concat([dataset.to_pandas(), df_results], axis=1)
 
-# Salva su Hugging Face
+# Pulizia memoria
+del dataset, results, df_results
+gc.collect()
+
 final_ds_out = Dataset.from_pandas(final_df_out)
 repo_id2 = "SelmaNajih001/Cnbc_MultiCompany2"
 final_ds_out.push_to_hub(repo_id2, private=True)
 
 print("✅ Dataset aggiornato con i campi Economics_Finance e Politics!")
-
-
-
