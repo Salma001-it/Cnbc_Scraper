@@ -1,6 +1,5 @@
 name: Update CNBC Dataset
 
-# Quando far partire il workflow
 on:
   schedule:
     - cron: "0 8 * * *"   # ogni giorno alle 08:00 UTC
@@ -11,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Prendi il codice dal repo
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. Setta Python
+      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -25,18 +24,22 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install selenium pandas datasets huggingface_hub openpyxl newspaper3k transformers torch accelerate lxml
+          pip install selenium pandas openpyxl datasets huggingface_hub newspaper3k transformers torch accelerate lxml
 
-      # 4. Pulizia cache temporanea prima dello script
+      # 4. Pulizia sicura cache temporanea prima dello script
       - name: Clean temporary files before run
-        run: rm -rf /tmp/*
+        run: |
+          rm -rf /tmp/chrome* || true
+          rm -rf /tmp/tmp* || true
 
-      # 5. Lancia il tuo script
+      # 5. Esegui lo script
       - name: Run scraper
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python Scraper.py
 
-      # 6. Pulizia cache temporanea dopo lo script
+      # 6. Pulizia sicura cache temporanea dopo lo script
       - name: Clean temporary files after run
-        run: rm -rf /tmp/*
+        run: |
+          rm -rf /tmp/chrome* || true
+          rm -rf /tmp/tmp* || true
