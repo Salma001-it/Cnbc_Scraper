@@ -24,8 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install selenium pandas openpyxl datasets huggingface_hub newspaper3k transformers torch accelerate lxml
-
+          pip install selenium pandas openpyxl datasets huggingface_hub newspaper3k transformers torch accelerate lxml_html_clean
       # 4. Pulizia sicura cache temporanea prima dello script
       - name: Clean temporary files before run
         run: |
