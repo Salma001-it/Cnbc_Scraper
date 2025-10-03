@@ -1,55 +1,42 @@
 name: Update CNBC Dataset
 
+# Quando far partire il workflow
 on:
-  workflow_dispatch:   # avvio manuale
   schedule:
     - cron: "0 8 * * *"   # ogni giorno alle 08:00 UTC
+  workflow_dispatch:      # permette di lanciare manualmente
 
 jobs:
-  update:
+  update-dataset:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout del repository
+      # 1. Prendi il codice dal repo
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      # Setup Python
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      # 2. Setta Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      # Installa dipendenze
+      # 3. Installa le dipendenze
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install selenium pandas openpyxl datasets huggingface_hub newspaper3k lxml transformers torch lxml_html_clean accelerate
+          pip install --upgrade pip
+          pip install selenium pandas datasets huggingface_hub openpyxl newspaper3k transformers torch accelerate lxml
 
-      # Installa Chrome e ChromeDriver (come avevi tu)
-      - name: Install Chrome and ChromeDriver
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip xvfb
-          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
-          CHROME_VERSION=$(google-chrome --version | grep -oE '[0-9]+(\.[0-9]+)+')
-          DRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION%.*}")
-          wget https://chromedriver.storage.googleapis.com/$DRIVER_VERSION/chromedriver_linux64.zip
-          unzip chromedriver_linux64.zip
-          sudo mv chromedriver /usr/local/bin/
-          sudo chmod +x /usr/local/bin/chromedriver
-
-      # Pulizia cache temporanea prima dello script
+      # 4. Pulizia cache temporanea prima dello script
       - name: Clean temporary files before run
         run: rm -rf /tmp/*
 
-      # Esegui lo script
+      # 5. Lancia il tuo script
       - name: Run scraper
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python Scraper.py
 
-      # Pulizia cache temporanea dopo lo script
+      # 6. Pulizia cache temporanea dopo lo script
       - name: Clean temporary files after run
         run: rm -rf /tmp/*
