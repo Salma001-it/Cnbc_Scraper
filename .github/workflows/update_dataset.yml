@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout del repository
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -20,29 +20,28 @@ jobs:
         with:
           python-version: "3.10"
 
-      # Installa dipendenze
+      # Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install selenium pandas openpyxl datasets huggingface_hub newspaper3k lxml transformers torch lxml_html_clean accelerate
+          pip install selenium pandas openpyxl datasets huggingface_hub newspaper3k transformers torch accelerate lxml lxml_html_clean
 
+      # Setup ChromeDriver (usando GitHub Action)
+      - name: Setup ChromeDriver
+        uses: browser-actions/setup-chromedriver@v1
+        with:
+          chromedriver-version: latest
 
-      # Installa Chrome e ChromeDriver
-      - name: Install Chrome and ChromeDriver
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip xvfb
-          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
-          CHROME_VERSION=$(google-chrome --version | grep -oE '[0-9]+(\.[0-9]+)+')
-          DRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE")
-          wget https://storage.googleapis.com/chrome-for-testing-public/$DRIVER_VERSION/linux64/chromedriver-linux64.zip
-          unzip chromedriver-linux64.zip
-          sudo mv chromedriver-linux64/chromedriver /usr/local/bin/
+      # Clean temporary files before run
+      - name: Clean temporary files before run
+        run: rm -rf /tmp/*
 
-      # Esegui lo script
+      # Run scraper & NLP script
       - name: Run scraper
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          python Scraper.py
+        run: python Scraper.py
+
+      # Clean temporary files after run
+      - name: Clean temporary files after run
+        run: rm -rf /tmp/*
