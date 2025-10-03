@@ -157,7 +157,7 @@ pipe.tokenizer.pad_token_id = pipe.model.config.eos_token_id
 results = []
 for i, out in enumerate(pipe(
     KeyDataset(dataset, "prompt"),
-    batch_size=8,
+    batch_size=2,
     truncation=True,
     padding=True,
     return_full_text=False
