@@ -1,10 +1,7 @@
 import time
 import random
 import pandas as pd
-import re
 import os
-import shutil
-import gc
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -44,14 +41,14 @@ def estrattore(c):
     
     while time.time() < end_time:
         driver.find_element(By.TAG_NAME, "body").send_keys(Keys.PAGE_DOWN)
-        time.sleep(random.uniform(0.5, 1.5))
+        time.sleep(random.uniform(0.5, 5))
 
     links = driver.find_elements(By.CLASS_NAME, "resultlink")
     for l in links:
         href = l.get_attribute("href")
         link_dataset.append({"Company": c, "Link": href})
 
-for c in company["Company"][:5]:
+for c in company["Company"]:
     estrattore(c)
     time.sleep(2)
 
