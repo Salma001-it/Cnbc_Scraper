@@ -25,11 +25,6 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install selenium pandas openpyxl datasets huggingface_hub newspaper3k transformers torch accelerate lxml_html_clean
-      # 4. Pulizia sicura cache temporanea prima dello script
-      - name: Clean temporary files before run
-        run: |
-          rm -rf /tmp/chrome* || true
-          rm -rf /tmp/tmp* || true
 
       # 5. Esegui lo script
       - name: Run scraper
@@ -37,8 +32,3 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python Scraper.py
 
-      # 6. Pulizia sicura cache temporanea dopo lo script
-      - name: Clean temporary files after run
-        run: |
-          rm -rf /tmp/chrome* || true
-          rm -rf /tmp/tmp* || true
