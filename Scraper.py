@@ -22,6 +22,9 @@ config.browser_user_agent = user_agent
 config.request_timeout = 8
 options = Options()
 options.add_argument("--headless")
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+
 driver = webdriver.Chrome(options=options)
 company = pd.read_excel("SP500CompanyNameTicker.xlsx")
 company["Company"] = company["Company"].str.replace("+", "%")
