@@ -26,7 +26,7 @@ options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 
 driver = webdriver.Chrome(options=options)
-company["Company"]="Tesla"
+company = pd.DataFrame({"Company": ["Tesla"]})
 #company = pd.read_excel("SP500CompanyNameTicker.xlsx")
 #company["Company"] = company["Company"].str.replace("+", "%")
 link_dataset = []
