@@ -26,9 +26,9 @@ options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 
 driver = webdriver.Chrome(options=options)
-company = pd.DataFrame({"Company": ["Tesla"]})
-#company = pd.read_excel("SP500CompanyNameTicker.xlsx")
-#company["Company"] = company["Company"].str.replace("+", "%")
+#company = pd.DataFrame({"Company": ["Tesla"]})
+company = pd.read_excel("SP500CompanyNameTicker.xlsx")
+company["Company"] = company["Company"].str.replace("+", "%")
 link_dataset = []
 
 def estrattore(c):
@@ -41,7 +41,7 @@ def estrattore(c):
     except:
         pass
 
-    end_time = time.time() + 3600
+    end_time = time.time() + 10
     
     while time.time() < end_time:
         driver.find_element(By.TAG_NAME, "body").send_keys(Keys.PAGE_DOWN)
