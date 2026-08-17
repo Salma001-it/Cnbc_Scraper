@@ -52,7 +52,7 @@ def estrattore(c):
         href = l.get_attribute("href")
         link_dataset.append({"Company": c, "Link": href})
 
-for c in company["Company"]:
+for c in company["Company"][:50]:
     estrattore(c)
     time.sleep(2)
 
